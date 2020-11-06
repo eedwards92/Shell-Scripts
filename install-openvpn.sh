@@ -7,6 +7,15 @@
 #                   server and client configuration profiles.
 # Compatability:    RedHat / CentOS 6/7/8
 ###############################################################################
+# Copyright © by DjRakso 2020###############################################################################
+#!/bin/sh
+###############################################################################
+# Author:           DjRakso
+# Date:             Thursday, November 5th, 2020
+# Description:      Install and configure OpenVPN for RedHat systems. Creates 
+#                   server and client configuration profiles.
+# Compatability:    RedHat / CentOS 6/7/8
+###############################################################################
 # Copyright © by DjRakso 2020
 ###############################################################################
 
@@ -33,7 +42,7 @@ CIPHER=AES-256-CBC
 ################
 CONCATENATE_COMMAND=`which cat`
 CHANGE_DIRECTORY_COMMAND="cd"
-CHANGE_MODE_COMMAND="which chmod"
+CHANGE_MODE_COMMAND=`which chmod`
 EXECUTE_CHANGE_MO DE_COMMAND="$CHANGE_MODE_COMMAND +x"
 CHECK_CONFIGURATION_SERVICES_COMMAND=`which chkconfig`
 COPY_COMMAND=`which cp`
@@ -211,8 +220,8 @@ function CopyFileToDirectory() {
 	FILE="${1}"
 	DIRECTORY="${2}"
 	if [ ! -z "$FILE" ] && [ ! -z "$DIRECTORY" ]; then
-		$FORCE_COPY_COMMAND $FILE $DIRECTORY/
-		FILE_NAME=echo ${FILE##*/}
+		$FORCE_COPY_COMMAND $FILE $DIRECTORY
+		FILE_NAME=$(echo ${FILE##*/})
 		NEW_FILE=$DIRECTORY/$FILE_NAME
 		if [ -f $NEW_FILE ]; then
 			$ECHO_COMMAND "Successfully copied the $NEW_FILE file to the $DIRECTORY directory."
@@ -328,7 +337,7 @@ function ReplaceFromLineToLineFile() {
 		FROM_LINE_VALUE="`cat $FILE | grep $SEARCH_KEY | cut -d= -f2`"
 		FROM_LINE="$SEARCH_KEY=$FROM_LINE_VALUE"
 		TO_LINE="$SEARCH_KEY=$TO_LINE"
-		$STREAM_EDITOR_COMMAND -i '/$FROM_LINE/$NEW_VALUE/' $FILE
+		$STREAM_EDITOR_COMMAND -i 's|$FROM_LINE|$NEW_VALUE|g' $FILE
 		SUCCESS="`cat $FILE | grep $SEARCH_KEY`"
 		if [ "$SUCCESS" == "$SEARCH_KEY=$NEW_VALUE" ]; then
 			$ECHO_COMMAND "Successfully replaced $FROM_LINE_VALUE to $NEW_VALUE from the $FILE file."
@@ -404,7 +413,7 @@ function CopyOpenVPNFilesToDirectory() {
 	ARRAY=($OPENVPN_SERVER_CA_CERTIFICATE_FILE $OPENVPN_SERVER_CA_KEY_FILE $OPENVPN_SERVER_DIFFIE_HELLMAN_PEM_FILE $OPENVPN_SERVER_SERVER_CERTIFICATE_FILE $OPENVPN_SERVER_SERVER_KEY_FILE $OPENVPN_SERVER_CRL_PEM_FILE)
 	for FILE in "${ARRAY[@]}"; do
 		if [ -f $FILE ]; then
-			CopyFileToDirectory $FILE $ETC_OPENVPN_DIR/
+			CopyFileToDirectory $FILE $ETC_OPENVPN_DIR
 			if [ $FILE == $OPENVPN_SERVER_CRL_PEM_FILE ]; then
 				$CHANGE_MODE_COMMAND 644 $FILE
 			fi
@@ -525,15 +534,15 @@ ChangeDirectory $ETC_OPENVPN_EASY_RSA_VERSION_DIR
 # Generate a Diffie-Hellman file.
 $OPENSSL_COMMAND dhparam $DH_KEY_SIZE -out $OPENVPN_SERVER_DIFFIE_HELLMAN_PEM_FILE
 # Initialise your PKI.
-.$OPENVPN_SERVER_EASYRSA_COMMAND init-pki
+. $OPENVPN_SERVER_EASYRSA_COMMAND init-pki
 # Create your CA and disable password locking.
-.$OPENVPN_SERVER_EASYRSA_COMMAND --batch build-ca nopass
+. $OPENVPN_SERVER_EASYRSA_COMMAND --batch build-ca nopass
 # Build a server certificate & key and disable password locking.
-.$OPENVPN_SERVER_EASYRSA_COMMAND build-server-full server nopass
+. $OPENVPN_SERVER_EASYRSA_COMMAND build-server-full server nopass
 # Build a client certificate & key and disable password locking.
-.$OPENVPN_SERVER_EASYRSA_COMMAND build-client-full $CLIENT_NAME nopass
+. $OPENVPN_SERVER_EASYRSA_COMMAND build-client-full $CLIENT_NAME nopass
 # Create your revoke certificate.
-.$OPENVPN_SERVER_EASYRSA_COMMAND gen-crl
+. $OPENVPN_SERVER_EASYRSA_COMMAND gen-crl
 # Generate a TLS Authentication key.
 $OPENVPN_COMMAND --genkey --secret $OPENVPN_SERVER_TLS_AUTHENTICATION_KEY_FILE
 
