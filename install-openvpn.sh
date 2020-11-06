@@ -5,16 +5,7 @@
 # Date:             Friday, November 6th, 2020
 # Description:      Install and configure OpenVPN for RedHat systems. Creates 
 #                   server and client configuration profiles.
-# Compatability:    RedHat / CentOS 6/7/8
-###############################################################################
-# Copyright © by DjRakso 2020###############################################################################
-#!/bin/sh
-###############################################################################
-# Author:           DjRakso
-# Date:             Thursday, November 5th, 2020
-# Description:      Install and configure OpenVPN for RedHat systems. Creates 
-#                   server and client configuration profiles.
-# Compatability:    RedHat / CentOS 6/7/8
+# Compatability:    CentOS/RedHat 6/7/8
 ###############################################################################
 # Copyright © by DjRakso 2020
 ###############################################################################
