@@ -755,6 +755,16 @@ function MainMenu() {
 		if [ -e $ETC_OPENVPN_SERVER_CONF_FILE ]; then
 			INSTALLED=0
 		fi
+		$ECHO_COMMAND "======================================="
+		$ECHO_COMMAND "===   Copyright © by DjRakso 2020   ==="
+		$ECHO_COMMAND "======================================="
+		$ECHO_COMMAND " NOV/13/2020                     v0.1.0"
+		$ECHO_COMMAND "======================================="
+		$ECHO_COMMAND ""
+		$ECHO_COMMAND ""
+		$ECHO_COMMAND " ___________ "
+		$ECHO_COMMAND "| Main Menu |"
+		$ECHO_COMMAND "============================================================"
 		$ECHO_COMMAND "What would you like to perform: "
 		if [ "$INSTALLED" == "0" ]; then
 			$ECHO_COMMAND "  1) Reinstall OpenVPN server"
@@ -765,6 +775,7 @@ function MainMenu() {
 		$ECHO_COMMAND "  3) Revoke an existing OpenVPN client profile(s)"
 		$ECHO_COMMAND "  4) List available OpenVPN client profile(s)"
 		$ECHO_COMMAND "  5) Exit"
+		$ECHO_COMMAND "============================================================"
 		$ECHO_COMMAND ""
 		read -p "Select: " MainMenuOption
 		case $MainMenuOption in
