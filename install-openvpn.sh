@@ -2,7 +2,7 @@
 #!/bin/sh
 ###############################################################################
 # Author:           DjRakso
-# Date:             Thursday, November 12th, 2020
+# Date:             Friday, November 13th, 2020
 # Description:      Install and configure OpenVPN for RedHat systems. Creates 
 #                   server and client configuration profiles.
 # Compatability:    CentOS/RedHat 6/7/8
@@ -28,39 +28,6 @@ OPENVPN_SERVER_SUBNET=24
 CIPHER=AES-256-CBC
 EXTERNAL_IP_ADDRESS=""
 #####################
-
-
-################
-### COMMANDS ###
-################
-CONCATENATE_COMMAND=`which cat`
-CHANGE_DIRECTORY_COMMAND="cd"
-CHANGE_MODE_COMMAND=`which chmod`
-EXECUTE_CHANGE_MODE_COMMAND="$CHANGE_MODE_COMMAND +x"
-CHECK_CONFIGURATION_SERVICES_COMMAND=`which chkconfig`
-COPY_COMMAND=`which cp`
-FORCE_COPY_COMMAND="$COPY_COMMAND -f"
-RECURSIVE_COPY_COMMAND="$COPY_COMMAND -r"
-FORCE_RECURSIVE_COPY_COMMAND="$COPY_COMMAND -rf"
-CUT_COMMAND=`which cut`
-ECHO_COMMAND=`which echo`
-EXIT_COMMAND="exit"
-FIREWALL_COMMAND=`which firewall-cmd`
-GREP_COMMAND=`which grep`
-IPTABLES_COMMAND=`which iptables`
-OPENSSL_COMMAND=`which openssl`
-OPENVPN_COMMAND=`which openvpn`
-REMOVE_COMMAND=`which rm`
-FORCE_REMOVE_COMMAND="$REMOVE_COMMAND -f"
-RECURSIVE_FORCE_COPY_COMMAND="$REMOVE_COMMAND -rf"
-SELINUX_POLICY_MANAGEMENT_COMMAND=`which semanage`
-STREAM_EDITOR_COMMAND=`which sed`
-SYSTEM_CONTROL_COMMAND=`which systemctl`
-TOUCH_COMMAND=`which touch`
-YUM_COMMAND=`which yum`
-YUM_INSTALL_COMMAND="$YUM_COMMAND -y install"
-YUM_UPDATE_COMMAND="$YUM_COMMAND -y update"
-################
 
 
 ###########################
@@ -134,6 +101,14 @@ OS_VERSION=$(grep -oE '[0-9]+' /etc/system-release | head -1)
 #################
 ### FUNCTIONS ###
 #################
+# Is running as root user.
+function IsRootUser() {
+	if [ "$EUID" -ne 0 ]; then
+		$ECHO_COMMAND "You need to run as root user."
+		return 1
+	fi
+}
+
 # Load the system commands.
 function LoadSystemCommands() {
 	CONCATENATE_COMMAND=`which cat`
@@ -148,9 +123,7 @@ function LoadSystemCommands() {
 	CUT_COMMAND=`which cut`
 	ECHO_COMMAND=`which echo`
 	EXIT_COMMAND="exit"
-	FIREWALL_COMMAND=`which firewall-cmd`
 	GREP_COMMAND=`which grep`
-	IPTABLES_COMMAND=`which iptables`
 	OPENSSL_COMMAND=`which openssl`
 	OPENVPN_COMMAND=`which openvpn`
 	REMOVE_COMMAND=`which rm`
@@ -158,18 +131,18 @@ function LoadSystemCommands() {
 	RECURSIVE_FORCE_COPY_COMMAND="$REMOVE_COMMAND -rf"
 	SELINUX_POLICY_MANAGEMENT_COMMAND=`which semanage`
 	STREAM_EDITOR_COMMAND=`which sed`
-	SYSTEM_CONTROL_COMMAND=`which systemctl`
 	TOUCH_COMMAND=`which touch`
 	YUM_COMMAND=`which yum`
 	YUM_INSTALL_COMMAND="$YUM_COMMAND -y install"
 	YUM_UPDATE_COMMAND="$YUM_COMMAND -y update"
-}
-
-# Is running as root user.
-function IsRootUser() {
-	if [ "$EUID" -ne 0 ]; then
-		$ECHO_COMMAND "You need to run as root user."
-		return 1
+	# CentOS 6
+	if [ "$OS_VERSION" -eq 6 ]; then
+		IPTABLES_COMMAND=`which iptables`
+		SYSTEM_CONTROL_COMMAND=`which service`
+	# CentOS 7+
+	elif [ "$OS_VERSION" -ge 7 ]; then
+		FIREWALL_COMMAND=`which firewall-cmd`
+		SYSTEM_CONTROL_COMMAND=`which systemctl`
 	fi
 }
 
@@ -386,12 +359,8 @@ function ReplaceFromLineToLineFile() {
 		if [ "$NEW_VALUE" != "$FROM_LINE_VALUE" ]; then
 			FROM_LINE="$SEARCH_KEY$ADD_SPACES=$ADD_SPACES$FROM_LINE_VALUE"
 			TO_LINE="$SEARCH_KEY$ADD_SPACES=$ADD_SPACES$NEW_VALUE"
-			$ECHO_COMMAND "FROM_LINE_VALUE: $FROM_LINE_VALUE"
-			$ECHO_COMMAND "FROM_LINE: $FROM_LINE"
-			$ECHO_COMMAND "TO_LINE: $TO_LINE"
 			$STREAM_EDITOR_COMMAND -i "s|${FROM_LINE}|${TO_LINE}|g" $FILE
 			SUCCESS="`$CONCATENATE_COMMAND $FILE | $GREP_COMMAND $SEARCH_KEY`"
-			$ECHO_COMMAND "SUCCESS: $SUCCESS"
 			if [ "$SUCCESS" == "$SEARCH_KEY$ADD_SPACES=$ADD_SPACES$NEW_VALUE" ]; then
 				$ECHO_COMMAND "Successfully replaced $SEARCH_KEY from $FROM_LINE_VALUE to $NEW_VALUE from the $FILE file."
 			else
@@ -422,6 +391,8 @@ function RetrieveExternalIPAddress() {
 	INTERNET_STATUS=$(ping -c 1 -q ifconfig.me >&/dev/null; echo $?)
 	if [ "$INTERNET_STATUS" -eq 0 ]; then
 		EXTERNAL_IP_ADDRESS=$(curl -s ifconfig.me)
+	else
+		$ECHO_COMMAND "Using default external IP address from user settings."
 	fi
 }
 
@@ -590,7 +561,7 @@ function CreateOpenVPNClientConfigurationFile() {
 # System checks.
 SystemChecks
 
-# Install OpenVPN server.
+# Install and configure the OpenVPN server.
 function InstallOpenVPNServer() {
 	# Update the system packages.
 	UpdateYumPackages
@@ -602,8 +573,11 @@ function InstallOpenVPNServer() {
 	InstallYumPackage policycoreutils-python
 
 	# Clean the /etc/opevpn/easy-rsa directory.
-	CleanDirectory $ETC_OPENVPN_EASY_RSA_DIR
+	CleanDirectory $ETC_OPENVPN_DIR
 
+	# Create the new OpenVPN Easy-RSA directory.
+	CreateDirectory $ETC_OPENVPN_DIR
+	
 	# Copy the default Easy-RSA directory to the OpenVPN directory.
 	CopyDirectoryToAnotherDirectory $USR_SHARE_EASY_RSA_DIR $ETC_OPENVPN_EASY_RSA_DIR
 
@@ -653,43 +627,60 @@ function InstallOpenVPNServer() {
 
 	# Restart the OpenVPN service.
 	RestartService openvpn
+	
+	clear
+	if [ "$INSTALLED" == "0" ]; then
+		$ECHO_COMMAND "Successfully reinstalled the OpenVPN server."
+	else
+		$ECHO_COMMAND "Successfully installed the OpenVPN server."
+	fi
+	$ECHO_COMMAND ""
 }
 
-# Create OpenVPN Client Profile.
+# Create an OpenVPN client profile.
 function CreateOpenVPNClientProfile() {
 	read -p "Enter a client name: " ClientNameSelect
 	
-	LIST_CLIENT_NAMES=(`ls $ETC_OPENVPN_CLIENTS_DIR | cut -d. -f1`)
-	for ITEM in "${LIST_CLIENT_NAMES[@]}"; do
-		if [ "$ITEM" == "$ClientNameSelect" ]; then
-			$ECHO_COMMAND "Sorry, this client name already exist. Please try again!"
-			$ECHO_COMMAND ""
-			CreateOpenVPNClientProfile
-		fi
-	done
-	
-	# Change to the specific OpenVPN Easy RSA version.
-	ChangeDirectory $ETC_OPENVPN_EASY_RSA_VERSION_DIR
-	
-	# Build a client certificate & key and disable password locking.
-	. $OPENVPN_SERVER_EASYRSA_COMMAND build-client-full $ClientNameSelect nopass
-	
-	# Create the OpenVPN clients directory if it doesn't exist.
-	CreateDirectory $ETC_OPENVPN_CLIENTS_DIR
-	
-	# Remove the previous OpenVPN client profile configuration file.
-	DeleteFile $ETC_OPENVPN_CLIENTS_DIR/$ClientNameSelect.ovpn
-	
-	# Retrieve the external IP address.
-	RetrieveExternalIPAddress
-	
-	# Create the OpenVPN client configuration file.
-	CreateOpenVPNClientConfigurationFile $ClientNameSelect
-	
+	if [ ! -z "$ClientNameSelect" ]; then
+		LIST_CLIENT_NAMES=(`ls $ETC_OPENVPN_CLIENTS_DIR | $CUT_COMMAND -d'.' -f 1`)
+		for ITEM in "${LIST_CLIENT_NAMES[@]}"; do
+			if [ "$ITEM" == "$ClientNameSelect" ]; then
+				$ECHO_COMMAND "Sorry, this client name already exist. Please try again!"
+				$ECHO_COMMAND ""
+				CreateOpenVPNClientProfile
+			fi
+		done
+		
+		# Change to the specific OpenVPN Easy RSA version.
+		ChangeDirectory $ETC_OPENVPN_EASY_RSA_VERSION_DIR
+		
+		# Build a client certificate & key and disable password locking.
+		. $OPENVPN_SERVER_EASYRSA_COMMAND build-client-full $ClientNameSelect nopass
+		
+		# Create the OpenVPN clients directory if it doesn't exist.
+		CreateDirectory $ETC_OPENVPN_CLIENTS_DIR
+		
+		# Remove the previous OpenVPN client profile configuration file.
+		DeleteFile $ETC_OPENVPN_CLIENTS_DIR/$ClientNameSelect.ovpn
+		
+		# Retrieve the external IP address.
+		RetrieveExternalIPAddress
+		
+		# Create the OpenVPN client configuration file.
+		CreateOpenVPNClientConfigurationFile $ClientNameSelect
+		
+		clear
+		$ECHO_COMMAND "Successfully created the $ClientNameSelect OpenVPN client profile."
+		$ECHO_COMMAND ""
+	else
+		$ECHO_COMMAND "Sorry, no name was entered. Please try again!"
+		$ECHO_COMMAND ""
+	fi
 }
 
 # Revoke OpenVPN Client Profile.
 function RevokeOpenVPNClientProfile() {
+	clear
 	if [ -e $OPENVPN_SERVER_INDEX_TXT_FILE ]; then
 		NUMBER_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $GREP_COMMAND -c "^V")
 		if [ "$NUMBER_OF_CLIENTS" -eq 0 ]; then
@@ -698,19 +689,43 @@ function RevokeOpenVPNClientProfile() {
 			MainMenu
 		else
 			$ECHO_COMMAND "You have a total of $NUMBER_OF_CLIENTS OpenVPN client profiles below:"
-			NAMES_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $CUT_COMMAND -d= -f2)
+			NAMES_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $GREP_COMMAND "^V" | $CUT_COMMAND -d'=' -f 2)
 			$ECHO_COMMAND "$NAMES_OF_CLIENTS"
-			read -p "Select a client name to revoke: " ClientNameSelect
-			
-			# Change to the specific OpenVPN Easy RSA version.
-			ChangeDirectory $ETC_OPENVPN_EASY_RSA_VERSION_DIR
-			
-			# Revoke the OpenVPN client profile.
-			. $OPENVPN_SERVER_EASYRSA_COMMAND --batch revoke $ClientNameSelect
-			
-			# Delete the OpenVPN configuration client profile.
-			DeleteFile $ETC_OPENVPN_CLIENTS_DIR/$ClientNameSelect.ovpn
-			
+			$ECHO_COMMAND ""
+			read -p "Select a client name to revoke: " ClientNameSelect	
+
+			if [ ! -z "$ClientNameSelect" ]; then
+				DOES_EXIST=1
+				LIST_CLIENT_NAMES=(`ls $ETC_OPENVPN_CLIENTS_DIR | cut -d'.' -f 1`)
+				for ITEM in "${LIST_CLIENT_NAMES[@]}"; do
+					if [ "$ITEM" == "$ClientNameSelect" ]; then
+						DOES_EXIST=0
+						break
+					fi
+				done
+				
+				if [ "$DOES_EXIST" -eq 0 ]; then
+					# Change to the specific OpenVPN Easy RSA version.
+					ChangeDirectory $ETC_OPENVPN_EASY_RSA_VERSION_DIR
+					
+					# Revoke the OpenVPN client profile.
+					. $OPENVPN_SERVER_EASYRSA_COMMAND --batch revoke $ClientNameSelect
+					
+					# Delete the OpenVPN configuration client profile.
+					DeleteFile $ETC_OPENVPN_CLIENTS_DIR/$ClientNameSelect.ovpn
+					
+					clear
+					$ECHO_COMMAND "Successfully revoked and deleted the $ClientNameSelect OpenVPN client profile."
+					$ECHO_COMMAND ""
+				else
+					$ECHO_COMMAND "The OpenVPN client profile $ClientNameSelect does not exist."
+					$ECHO_COMMAND ""
+				fi
+			else
+				$ECHO_COMMAND "Sorry, no name was entered. Please try again!"
+				$ECHO_COMMAND ""
+				RevokeOpenVPNClientProfile
+			fi
 		fi
 	else
 		$ECHO_COMMAND "The server is incorrectly configured, exiting..."
@@ -718,8 +733,23 @@ function RevokeOpenVPNClientProfile() {
 	fi
 }
 
+# List all the current OpenVPN client profiles.
+function ListOpenVPNClientProfile() {
+	clear
+	if [ -e $OPENVPN_SERVER_INDEX_TXT_FILE ]; then
+		NUMBER_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $GREP_COMMAND -c "^V")
+		NAMES_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $CUT_COMMAND -d'=' -f 2)
+		$ECHO_COMMAND "You have a total of $NUMBER_OF_CLIENTS OpenVPN client profiles below:"
+		$ECHO_COMMAND "$NAMES_OF_CLIENTS"
+		$ECHO_COMMAND ""
+		read -p "Press the [Enter] key to return back to the Main Menu: " EnterKey
+		clear
+	fi
+}
+
 # Main menu.
 function MainMenu() {
+	LoadSystemCommands
 	while :
 	do
 		if [ -e $ETC_OPENVPN_SERVER_CONF_FILE ]; then
@@ -732,8 +762,10 @@ function MainMenu() {
 			$ECHO_COMMAND "  1) Install OpenVPN server"
 		fi
 		$ECHO_COMMAND "  2) Create a new OpenVPN client profile"
-		$ECHO_COMMAND "  3) Revoke an existing OpenVPN client profile"
-		$ECHO_COMMAND "  4) Exit"
+		$ECHO_COMMAND "  3) Revoke an existing OpenVPN client profile(s)"
+		$ECHO_COMMAND "  4) List available OpenVPN client profile(s)"
+		$ECHO_COMMAND "  5) Exit"
+		$ECHO_COMMAND ""
 		read -p "Select: " MainMenuOption
 		case $MainMenuOption in
 			1) clear;
@@ -746,10 +778,13 @@ function MainMenu() {
 			RevokeOpenVPNClientProfile;
 			MainMenu;;
 			4) clear;
+			ListOpenVPNClientProfile;
+			MainMenu;;
+			5) clear;
 			exit;;
 		esac
 	done
 }
 
-LoadSystemCommands
+clear
 MainMenu
