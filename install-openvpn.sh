@@ -15,6 +15,8 @@
 #####################
 ### USER SETTINGS ###
 #####################
+SCRIPT_VERSION=0.1.1
+SCRIPT_COMMIT_DATE="NOV/14/2020"
 FORCE_SYSTEM_UPDATE=1
 OPENVPN_PORT=1194
 OPENVPN_PROTOCOL=udp
@@ -738,12 +740,18 @@ function ListOpenVPNClientProfile() {
 	clear
 	if [ -e $OPENVPN_SERVER_INDEX_TXT_FILE ]; then
 		NUMBER_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $GREP_COMMAND -c "^V")
-		NAMES_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $CUT_COMMAND -d'=' -f 2)
-		$ECHO_COMMAND "You have a total of $NUMBER_OF_CLIENTS OpenVPN client profiles below:"
-		$ECHO_COMMAND "$NAMES_OF_CLIENTS"
-		$ECHO_COMMAND ""
-		read -p "Press the [Enter] key to return back to the Main Menu: " EnterKey
-		clear
+		if [ "$NUMBER_OF_CLIENTS" -eq 0 ]; then
+			$ECHO_COMMAND "You have no existing OpenVPN client profiles."
+			$ECHO_COMMAND ""
+			MainMenu
+		else
+			NAMES_OF_CLIENTS=$(tail -n +2 $OPENVPN_SERVER_INDEX_TXT_FILE | $GREP_COMMAND "^V" | $CUT_COMMAND -d'=' -f 2)
+			$ECHO_COMMAND "You have a total of $NUMBER_OF_CLIENTS OpenVPN client profiles below:"
+			$ECHO_COMMAND "$NAMES_OF_CLIENTS"
+			$ECHO_COMMAND ""
+			read -p "Press the [Enter] key to return back to the Main Menu: " EnterKey
+			clear
+		fi
 	fi
 }
 
@@ -758,7 +766,7 @@ function MainMenu() {
 		$ECHO_COMMAND "======================================="
 		$ECHO_COMMAND "===   Copyright © by DjRakso 2020   ==="
 		$ECHO_COMMAND "======================================="
-		$ECHO_COMMAND " NOV/13/2020                     v0.1.0"
+		$ECHO_COMMAND "$SCRIPT_COMMIT_DATE                      v$SCRIPT_VERSION"
 		$ECHO_COMMAND "======================================="
 		$ECHO_COMMAND ""
 		$ECHO_COMMAND ""
