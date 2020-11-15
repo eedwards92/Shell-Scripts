@@ -2,7 +2,7 @@
 #!/bin/sh
 ###############################################################################
 # Author:           DjRakso
-# Date:             Friday, November 13th, 2020
+# Date:             Sunday, November 15th, 2020
 # Description:      Install and configure OpenVPN for RedHat systems. Creates 
 #                   server and client configuration profiles.
 # Compatability:    CentOS/RedHat 6/7/8
@@ -16,7 +16,7 @@
 ### USER SETTINGS ###
 #####################
 SCRIPT_VERSION=0.1.1
-SCRIPT_COMMIT_DATE="NOV/14/2020"
+SCRIPT_COMMIT_DATE="NOV/15/2020"
 FORCE_SYSTEM_UPDATE=1
 OPENVPN_PORT=1194
 OPENVPN_PROTOCOL=udp
