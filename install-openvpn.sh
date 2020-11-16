@@ -392,7 +392,7 @@ function RetrieveExternalIPAddress() {
 	# Return 0 for true.
 	INTERNET_STATUS=$(ping -c 1 -q ifconfig.me >&/dev/null; echo $?)
 	if [ "$INTERNET_STATUS" -eq 0 ]; then
-		EXTERNAL_IP_ADDRESS=$(curl -s ifconfig.me)
+		EXTERNAL_IP_ADDRESS=$(curl ipecho.net/plain; echo)
 	else
 		$ECHO_COMMAND "Using default external IP address from user settings."
 	fi
